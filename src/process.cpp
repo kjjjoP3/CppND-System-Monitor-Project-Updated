@@ -51,11 +51,16 @@ string Process::User() {
 }
 
 // Return the age of this process (in seconds)
-long int Process::UpTime() { 
-    return LinuxParser::UpTime(pid_);
+long int Process::UpTime() {
+    std::ifstream stream("/proc/uptime");
+    long int uptime = 0;
+
+    if (stream.is_open()) {
+        stream >> uptime;
+    }
+
+    return uptime; // Trả về tổng thời gian hệ thống đã chạy
 }
 
 // Overload the "less than" comparison operator for Process objects
-bool Process::operator<(Process const& other_process) const { 
-    return this->CpuUtilization() < other_process.CpuUtilization(); 
-}
+bool Process::operator<(Process const& a[[maybe_unused]]) const { return true; }
