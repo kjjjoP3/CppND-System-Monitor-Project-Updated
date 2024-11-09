@@ -15,7 +15,7 @@ using std::vector;
 int Process::Pid() { return pid_; }
 
 // Return this process's CPU utilization
-float Process::CpuUtilization() {
+float Process::CpuUtilization() const {
     // Tính toán thời gian làm việc và tổng thời gian CPU bằng cách sử dụng jiffies
     vector<string> jiffies_data = LinuxParser::CpuUtilization();
     float total_jiffies = 0;
