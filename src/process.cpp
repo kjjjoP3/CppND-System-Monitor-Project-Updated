@@ -16,23 +16,44 @@ int Process::Pid() { return pid_; }
 
 // Return this process's CPU utilization
 float Process::CpuUtilization() const {
-    // Retrieve the jiffies data for calculating CPU utilization
-    vector<string> jiffies_data = LinuxParser::CpuUtilization();
-    float total_jiffies = 0;
-    float work_jiffies = 0;
+    // Retrieve jiffies data for the current and previous times
+    vector<string> current_jiffies = LinuxParser::CpuUtilization();
+    static vector<string> previous_jiffies = current_jiffies;
 
-    // Sum up the jiffies for total CPU time and work time (User, Nice, System jiffies)
-    for (size_t i = 0; i < jiffies_data.size(); i++) {
-        float jiffies = stof(jiffies_data[i]);
-        total_jiffies += jiffies;
-        if (i < 3) {  // User, Nice, System jiffies
-            work_jiffies += jiffies;
+    // Initialize total jiffies and work jiffies for the current and previous times
+    float current_total_jiffies = 0;
+    float current_work_jiffies = 0;
+    float previous_total_jiffies = 0;
+    float previous_work_jiffies = 0;
+
+    // Calculate current jiffies
+    for (size_t i = 0; i < current_jiffies.size(); ++i) {
+        float jiffies = stof(current_jiffies[i]);
+        current_total_jiffies += jiffies;
+        if (i < 3) { // User, Nice, System jiffies
+            current_work_jiffies += jiffies;
         }
     }
 
-    // Calculate CPU utilization as a fraction between 0 and 1
-    float cpu_percentage = work_jiffies / total_jiffies; // Remove * 100 here
-    return cpu_percentage;
+    // Calculate previous jiffies
+    for (size_t i = 0; i < previous_jiffies.size(); ++i) {
+        float jiffies = stof(previous_jiffies[i]);
+        previous_total_jiffies += jiffies;
+        if (i < 3) {
+            previous_work_jiffies += jiffies;
+        }
+    }
+
+    // Calculate CPU utilization by the difference of current and previous jiffies
+    float diff_total_jiffies = current_total_jiffies - previous_total_jiffies;
+    float diff_work_jiffies = current_work_jiffies - previous_work_jiffies;
+
+    // Save current jiffies as previous for the next round
+    previous_jiffies = current_jiffies;
+
+    // Avoid division by zero and calculate percentage utilization
+    if (diff_total_jiffies == 0) return 0;
+    return diff_work_jiffies / diff_total_jiffies;
 }
 
 // Return the command that generated this process
@@ -40,8 +61,15 @@ string Process::Command() {
     return LinuxParser::Command(pid_);
 }
 
-// Return this process's memory utilization
-string Process::Ram() { return LinuxParser::Ram(pid_); }
+// Return this process's memory utilization in MB
+string Process::Ram() { 
+    string ram = LinuxParser::Ram(pid_);
+    float ram_usage = stof(ram);  // Convert string to float
+    if (ram_usage > 0) {
+        ram_usage /= 1024;  // Convert from KB to MB
+    }
+    return to_string(ram_usage).substr(0, 5);  // Limit to 2 decimal places
+}
 
 // Return the user (name) that generated this process
 string Process::User() {
@@ -52,23 +80,18 @@ string Process::User() {
 // Return the age of this process (in seconds)
 long int Process::UpTime() {
     string line;
-    string value;
-    long int uptime = 0;
-
     std::ifstream stream("/proc/" + std::to_string(pid_) + "/stat");
     if (stream.is_open()) {
-        std::getline(stream, line);
-        std::istringstream linestream(line);
-        // Skip the first 13 fields (pid, comm, state, etc.)
-        for (int i = 0; i < 13; ++i) {
-            linestream >> value;
-        }
-        long int starttime;
-        linestream >> starttime;  // Time when the process started
-        uptime = LinuxParser::UpTime() - (starttime / sysconf(_SC_CLK_TCK));
+        getline(stream, line);
+        std::istringstream ss(line);
+        string value;
+        for (int i = 0; i < 21; i++) ss >> value;  // Skip first 21 values
+        long int start_time;
+        ss >> start_time;
+        long int uptime = LinuxParser::UpTime() - start_time / sysconf(_SC_CLK_TCK);
+        return uptime;
     }
-
-    return uptime; // Return process uptime in seconds
+    return 0;
 }
 
 // Overload the "less than" comparison operator for Process objects
