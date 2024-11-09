@@ -16,12 +16,12 @@ int Process::Pid() { return pid_; }
 
 // Return this process's CPU utilization
 float Process::CpuUtilization() const {
-    // Tính toán thời gian làm việc và tổng thời gian CPU bằng cách sử dụng jiffies
+    // Retrieve the jiffies data for calculating CPU utilization
     vector<string> jiffies_data = LinuxParser::CpuUtilization();
     float total_jiffies = 0;
     float work_jiffies = 0;
 
-    // Tổng hợp thời gian sử dụng jiffies cho toàn bộ CPU và cho các tác vụ chính
+    // Sum up the jiffies for total CPU time and work time (User, Nice, System jiffies)
     for (size_t i = 0; i < jiffies_data.size(); i++) {
         float jiffies = stof(jiffies_data[i]);
         total_jiffies += jiffies;
@@ -30,10 +30,9 @@ float Process::CpuUtilization() const {
         }
     }
 
-    // Tính toán phần trăm sử dụng CPU dựa trên thời gian làm việc và tổng thời gian
-    float cpu_percentage = (work_jiffies / total_jiffies) * 100;
-    float seconds = work_jiffies / sysconf(_SC_CLK_TCK);
-    return seconds;
+    // Calculate CPU utilization as a fraction between 0 and 1
+    float cpu_percentage = work_jiffies / total_jiffies;
+    return cpu_percentage;
 }
 
 // Return the command that generated this process
@@ -59,7 +58,7 @@ long int Process::UpTime() {
         stream >> uptime;
     }
 
-    return uptime; // Trả về tổng thời gian hệ thống đã chạy
+    return uptime; // Returns the total system uptime
 }
 
 // Overload the "less than" comparison operator for Process objects
