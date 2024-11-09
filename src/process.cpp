@@ -31,7 +31,7 @@ float Process::CpuUtilization() const {
     }
 
     // Calculate CPU utilization as a fraction between 0 and 1
-    float cpu_percentage = work_jiffies / total_jiffies;
+    float cpu_percentage = work_jiffies / total_jiffies; // Remove * 100 here
     return cpu_percentage;
 }
 
@@ -51,14 +51,24 @@ string Process::User() {
 
 // Return the age of this process (in seconds)
 long int Process::UpTime() {
-    std::ifstream stream("/proc/uptime");
+    string line;
+    string value;
     long int uptime = 0;
 
+    std::ifstream stream("/proc/" + std::to_string(pid_) + "/stat");
     if (stream.is_open()) {
-        stream >> uptime;
+        std::getline(stream, line);
+        std::istringstream linestream(line);
+        // Skip the first 13 fields (pid, comm, state, etc.)
+        for (int i = 0; i < 13; ++i) {
+            linestream >> value;
+        }
+        long int starttime;
+        linestream >> starttime;  // Time when the process started
+        uptime = LinuxParser::UpTime() - (starttime / sysconf(_SC_CLK_TCK));
     }
 
-    return uptime; // Returns the total system uptime
+    return uptime; // Return process uptime in seconds
 }
 
 // Overload the "less than" comparison operator for Process objects
